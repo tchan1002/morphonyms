@@ -30,9 +30,10 @@ function App() {
   const [message, setMessage] = useState<string>("");
   const [state, setState] = useState<GameState>("playing");
 
-  const wordLen = useMemo(() => startWord.length, [startWord]);
+  // const wordLen = useMemo(() => startWord.length, [startWord]);
   const currentWord = path[path.length - 1];
-  const isValidWord = (w: string) => WORDS.includes(w);
+  const isValidWord = (w: string) =>
+    mode === "freeplay" ? /^[A-Z]+$/.test(w) : WORDS.includes(w);  
 
   // If user switches to Freeplay, keep UI but don't tie to daily/streaks.
   function setModeDaily() {
@@ -54,7 +55,14 @@ if (!isOneMorph(currentWord, g)) {
   setMessage("Move must add one, drop one, change one, or swap two letters.");
   return;
 }
-
+if (!isValidWord(g)) {
+  setMessage(
+    mode === "freeplay"
+      ? "Use only A–Z letters."
+      : "That’s not in today’s dictionary."
+  );
+  return;
+}
     if (path.includes(g)) {
       setMessage("You already used that word.");
       return;
@@ -219,7 +227,7 @@ if (!isOneMorph(currentWord, g)) {
                 Start New Ladder
               </button>
               <p className="hint">
-              Tip: start/target can be any real words in the dictionary.
+                 Tip: start/target can be any real words in the dictionary.
               </p>
             </div>
           </details>
