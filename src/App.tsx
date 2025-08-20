@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { WORDS } from "./words4";
-import { oneLetterDiff, normalize } from "./lib";
+import { isOneMorph, normalize } from "./lib";
 import {
   todayPuzzle,
   loadStats,
@@ -49,18 +49,12 @@ function App() {
     const g = normalize(guess);
     setMessage("");
 
-    if (g.length !== wordLen) {
-      setMessage(`Guesses must be ${wordLen} letters.`);
-      return;
-    }
-    if (!isValidWord(g)) {
-      setMessage("That’s not in our word list (for now).");
-      return;
-    }
-    if (!oneLetterDiff(currentWord, g)) {
-      setMessage("Change exactly ONE letter from the previous word.");
-      return;
-    }
+    // lengths can differ by -1/0/+1 now; we validate by rule engine
+if (!isOneMorph(currentWord, g)) {
+  setMessage("Move must add one, drop one, change one, or swap two letters.");
+  return;
+}
+
     if (path.includes(g)) {
       setMessage("You already used that word.");
       return;
@@ -124,10 +118,13 @@ function App() {
 
   return (
     <div className="wrap">
-      <header className="top">
-        <h1>Morphonyms</h1>
-        <p className="tag">Change one letter each step. Every step must be a real word.</p>
-      </header>
+     <header className="top">
+  <h1>Morphonyms</h1>
+  <p className="tag">
+    Each move: add one, drop one, change one, or swap two letters. Every step must be a real word.
+  </p>
+</header>
+
 
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <div className="row" style={{ gap: "0.5rem" }}>
@@ -172,14 +169,14 @@ function App() {
 
         {state === "playing" && (
           <div className="controls">
-            <input
-              className="guessInput"
-              placeholder={`${wordLen}-letter guess`}
-              value={guess}
-              onChange={(e) => setGuess(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitGuess()}
-              maxLength={wordLen}
-            />
+       <input
+  className="guessInput"
+  placeholder={`Your next word`}
+  value={guess}
+  onChange={(e) => setGuess(e.target.value)}
+  onKeyDown={(e) => e.key === "Enter" && submitGuess()}
+/>
+
             <button onClick={submitGuess} className="btn">Submit</button>
           </div>
         )}
@@ -206,7 +203,6 @@ function App() {
                 <input
                   value={startWord}
                   onChange={(e) => setStartWord(normalize(e.target.value))}
-                  maxLength={wordLen}
                 />
               </label>
               <label>
@@ -214,7 +210,6 @@ function App() {
                 <input
                   value={targetWord}
                   onChange={(e) => setTargetWord(normalize(e.target.value))}
-                  maxLength={wordLen}
                 />
               </label>
               <button
@@ -224,7 +219,7 @@ function App() {
                 Start New Ladder
               </button>
               <p className="hint">
-                Tip: keep words the same length and within the current word list.
+              Tip: start/target can be any real words in the dictionary.
               </p>
             </div>
           </details>
