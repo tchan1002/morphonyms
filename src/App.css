@@ -1,0 +1,112 @@
+.wrap {
+  max-width: 720px;
+  margin: 2rem auto;
+  padding: 1.25rem;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+.top h1 { margin: 0; font-size: 2rem; }
+.tag { color: #555; margin-top: 0.25rem; }
+
+.board {
+  margin-top: 1.25rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.pair {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.pill {
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.pill.start { background: #eef6ff; border: 1px solid #cfe3ff; }
+.pill.target { background: #fff3e8; border: 1px solid #ffd7b3; }
+.arrow { opacity: 0.6; }
+
+.path {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0 1rem;
+}
+.path-item {
+  padding: 0.25rem 0;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.guessInput {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.btn {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #333;
+  background: #111;
+  color: white;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn.secondary {
+  background: white;
+  color: #111;
+  border: 1px solid #aaa;
+}
+
+.msg {
+  margin: 0.25rem 0 0.75rem;
+  color: #0a7a20;
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.freeplay {
+  margin-top: 1rem;
+}
+.freeplay-inner {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+.freeplay-inner input {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hint {
+  grid-column: 1 / -1;
+  color: #666;
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+}
+
+.foot { margin-top: 1rem; color: #666; }
