@@ -104,7 +104,7 @@ function App() {
     const bar = "🟩".repeat(Math.max(moves, 1));
     const body = `Path: ${path.join(" → ")}`;
 
-    const text = `${header}\n${bar}\n${body}\nhttps://morphonyms.example`; // replace with your real URL after deploy
+    const text = `${header}\n${bar}\n${body}\nhttps://morphonyms.vercel.app`;
     navigator.clipboard
       .writeText(text)
       .then(() => setMessage("Result copied! Paste to share."))
