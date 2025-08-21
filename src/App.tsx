@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { WORDS } from "./words4";
-import { isOneMorph, normalize } from "./lib";
-import {
-  todayPuzzle,
-  loadStats,
-  recordWinFor,
-  dayId as computeDayId,
-} from "./daily";
 import "./App.css";
+
+import { normalize, isOneMorph } from "./lib";
+import { todayPuzzle, loadStats, recordWinFor, dayId as computeDayId } from "./daily";
+import { warmDictAround, inDict, inDictSync } from "./dict";
 
 type GameState = "playing" | "won";
 type Mode = "daily" | "freeplay";
+
+const SITE_URL = "https://morphonyms.vercel.app"; // update to your live URL
 
 function App() {
   // Mode
   const [mode, setMode] = useState<Mode>("daily");
 
-  // Daily puzzle setup
+  // Daily puzzle setup (picked on mount)
   const { id: todayId, puzzle } = useMemo(() => todayPuzzle(), []);
   const [startWord, setStartWord] = useState(puzzle.start);
   const [targetWord, setTargetWord] = useState(puzzle.target);
@@ -30,12 +28,24 @@ function App() {
   const [message, setMessage] = useState<string>("");
   const [state, setState] = useState<GameState>("playing");
 
-  // const wordLen = useMemo(() => startWord.length, [startWord]);
-  const currentWord = path[path.length - 1];
-  const isValidWord = (w: string) =>
-    mode === "freeplay" ? /^[A-Z]+$/.test(w) : WORDS.includes(w);  
+  // Dictionary readiness flag
+  const [dictReady, setDictReady] = useState(false);
 
-  // If user switches to Freeplay, keep UI but don't tie to daily/streaks.
+  const currentWord = path[path.length - 1];
+
+  // ---- Dictionary preloading (for current start length, and optionally target) ----
+  useEffect(() => {
+    setDictReady(false);
+    warmDictAround(startWord.length)
+      .then(() => setDictReady(true))
+      .catch(() => setDictReady(true)); // fail-open so UI doesn’t hang
+  }, [startWord]);
+
+  useEffect(() => {
+    warmDictAround(targetWord.length).catch(() => {});
+  }, [targetWord]);
+
+  // ---- Mode switching ----
   function setModeDaily() {
     setMode("daily");
     const { puzzle } = todayPuzzle();
@@ -46,23 +56,34 @@ function App() {
     resetGame("COLD", "WARM");
   }
 
-  function submitGuess() {
+  // ---- Dictionary checks (sync fast path + async fallback) ----
+  function validateWordSync(w: string): boolean {
+    return inDictSync(w);
+  }
+  async function validateWordAsync(w: string): Promise<boolean> {
+    return await inDict(w);
+  }
+
+  // ---- Submit guess ----
+  async function submitGuess() {
     const g = normalize(guess);
     setMessage("");
 
-    // lengths can differ by -1/0/+1 now; we validate by rule engine
-if (!isOneMorph(currentWord, g)) {
-  setMessage("Move must add one, drop one, change one, or swap two letters.");
-  return;
-}
-if (!isValidWord(g)) {
-  setMessage(
-    mode === "freeplay"
-      ? "Use only A–Z letters."
-      : "That’s not in today’s dictionary."
-  );
-  return;
-}
+    // Rule check: add one, drop one, change one, or swap two letters
+    if (!isOneMorph(currentWord, g)) {
+      setMessage("Move must add one, drop one, change one, or swap two letters.");
+      return;
+    }
+
+    // Dictionary required in ALL modes
+    const quick = validateWordSync(g);
+    let ok = quick;
+    if (!quick) ok = await validateWordAsync(g);
+    if (!ok) {
+      setMessage("Not in dictionary.");
+      return;
+    }
+
     if (path.includes(g)) {
       setMessage("You already used that word.");
       return;
@@ -75,8 +96,6 @@ if (!isValidWord(g)) {
     if (g === targetWord) {
       setState("won");
       setMessage(`Nice! Solved in ${newPath.length - 1} moves.`);
-
-      // If this is the daily, record streak
       if (mode === "daily") {
         const updated = recordWinFor(computeDayId());
         setStreak(updated.streak);
@@ -84,6 +103,7 @@ if (!isValidWord(g)) {
     }
   }
 
+  // ---- Reset game ----
   function resetGame(newStart = startWord, newTarget = targetWord) {
     const s = normalize(newStart);
     const t = normalize(newTarget);
@@ -95,44 +115,37 @@ if (!isValidWord(g)) {
     setState("playing");
   }
 
+  // ---- Share result (emoji bar + path + site link) ----
   function shareResultEmoji() {
     const moves = path.length - 1;
     const header =
       mode === "daily"
         ? `Morphonyms #${todayId} — ${moves} move${moves === 1 ? "" : "s"}`
         : `Morphonyms (Freeplay) — ${moves} move${moves === 1 ? "" : "s"}`;
-
-    // Simple single-line emoji “bar” equal to number of moves
     const bar = "🟩".repeat(Math.max(moves, 1));
     const body = `Path: ${path.join(" → ")}`;
 
-    const text = `${header}\n${bar}\n${body}\nhttps://morphonyms.vercel.app`;
+    const text = `${header}\n${bar}\n${body}\n${SITE_URL}`;
     navigator.clipboard
       .writeText(text)
       .then(() => setMessage("Result copied! Paste to share."))
-      .catch(() =>
-        setMessage("Couldn’t copy automatically. You can copy manually from below.")
-      );
+      .catch(() => setMessage("Couldn’t copy automatically. You can copy manually."));
   }
-
-  // Make sure daily puzzle is set if user reloads while in daily mode
-  useEffect(() => {
-    if (mode === "daily") {
-      const { puzzle } = todayPuzzle();
-      resetGame(puzzle.start, puzzle.target);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
 
   return (
     <div className="wrap">
-     <header className="top">
-  <h1>Morphonyms</h1>
-  <p className="tag">
-    Each move: add one, drop one, change one, or swap two letters. Every step must be a real word.
-  </p>
-</header>
+      <header className="top">
+        <h1>Morphonyms</h1>
+        <p className="tag">
+          Each move: add one, drop one, change one, or swap two letters. Every step must be in the dictionary.
+        </p>
+      </header>
 
+      {!dictReady && (
+        <div className="msg" style={{ color: "#555" }}>
+          Loading dictionary…
+        </div>
+      )}
 
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <div className="row" style={{ gap: "0.5rem" }}>
@@ -177,14 +190,13 @@ if (!isValidWord(g)) {
 
         {state === "playing" && (
           <div className="controls">
-       <input
-  className="guessInput"
-  placeholder={`Your next word`}
-  value={guess}
-  onChange={(e) => setGuess(e.target.value)}
-  onKeyDown={(e) => e.key === "Enter" && submitGuess()}
-/>
-
+            <input
+              className="guessInput"
+              placeholder="Your next word"
+              value={guess}
+              onChange={(e) => setGuess(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitGuess()}
+            />
             <button onClick={submitGuess} className="btn">Submit</button>
           </div>
         )}
@@ -196,9 +208,9 @@ if (!isValidWord(g)) {
             Reset
           </button>
           {state === "won" && (
-            <>
-              <button className="btn" onClick={shareResultEmoji}>Share (emoji)</button>
-            </>
+            <button className="btn" onClick={shareResultEmoji}>
+              Share (emoji)
+            </button>
           )}
         </div>
 
@@ -220,14 +232,11 @@ if (!isValidWord(g)) {
                   onChange={(e) => setTargetWord(normalize(e.target.value))}
                 />
               </label>
-              <button
-                className="btn"
-                onClick={() => resetGame(startWord, targetWord)}
-              >
+              <button className="btn" onClick={() => resetGame(startWord, targetWord)}>
                 Start New Ladder
               </button>
               <p className="hint">
-                 Tip: start/target can be any real words in the dictionary.
+                Freeplay & Daily both require dictionary words.
               </p>
             </div>
           </details>
@@ -235,7 +244,7 @@ if (!isValidWord(g)) {
       </section>
 
       <footer className="foot">
-        <small>Prototype demo — local dictionary only. Daily puzzles and streaks are stored on your device.</small>
+        <small>Prototype — dictionaries load on demand per word length.</small>
       </footer>
     </div>
   );
