@@ -6,137 +6,57 @@ import { todayPuzzle, loadStats, recordWinFor, dayId as computeDayId } from "./d
 import { warmDictAround, inDict, inDictSync } from "./dict";
 
 type GameState = "playing" | "won";
-type Mode = "daily" | "freeplay";
+type Mode = "daily" | "freeplay" | "timed";
 
-const SITE_URL = "https://morphonyms.vercel.app"; // update to your live URL
+const SITE_URL = "https://morphonyms.vercel.app"; // set to your live URL
 
 function App() {
-  // Mode
+  // ---- Modes
   const [mode, setMode] = useState<Mode>("daily");
 
-  // Daily puzzle setup (picked on mount)
+  // ---- Daily puzzle setup
   const { id: todayId, puzzle } = useMemo(() => todayPuzzle(), []);
   const [startWord, setStartWord] = useState(puzzle.start);
   const [targetWord, setTargetWord] = useState(puzzle.target);
 
-  // Stats
+  // ---- Stats (Daily streak)
   const [streak, setStreak] = useState(loadStats().streak);
 
-  // Game state
+  // ---- Game state
   const [path, setPath] = useState<string[]>([startWord]);
   const [guess, setGuess] = useState("");
   const [message, setMessage] = useState<string>("");
   const [state, setState] = useState<GameState>("playing");
 
-  // Dictionary readiness flag
+  // ---- Dictionary readiness
   const [dictReady, setDictReady] = useState(false);
+
+  // ---- Freeplay randomizer
+  const [freeplayLen, setFreeplayLen] = useState(4); // 3/4/5
+
+  // ---- Timed mode
+  const [timedLen, setTimedLen] = useState(4); // 3/4/5
+  const [timedDuration, setTimedDuration] = useState<number>(60); // 30 or 60 seconds
+  const [timedLeft, setTimedLeft] = useState<number>(60);
+  const [timedRunning, setTimedRunning] = useState(false);
+  const [timedScore, setTimedScore] = useState(0);
+  const [timedBest, setTimedBest] = useState<number>(() => loadTimedBest(4, 60));
 
   const currentWord = path[path.length - 1];
 
-  // ---- Dictionary preloading (for current start length, and optionally target) ----
+  // ---------------- Dictionary preloading ----------------
   useEffect(() => {
     setDictReady(false);
     warmDictAround(startWord.length)
       .then(() => setDictReady(true))
-      .catch(() => setDictReady(true)); // fail-open so UI doesn’t hang
+      .catch(() => setDictReady(true));
   }, [startWord]);
 
   useEffect(() => {
     warmDictAround(targetWord.length).catch(() => {});
   }, [targetWord]);
 
-  // ---- Mode switching ----
-  function setModeDaily() {
-    setMode("daily");
-    const { puzzle } = todayPuzzle();
-    resetGame(puzzle.start, puzzle.target);
-  }
-  function setModeFreeplay() {
-    setMode("freeplay");
-    resetGame("COLD", "WARM");
-  }
-  // Freeplay randomizer settings
-const [freeplayLen, setFreeplayLen] = useState(4); // default 4-letter puzzles
-
-async function randomWord(len: number): Promise<string> {
-  // ensure dict for this length is warm before fetching the list
-  await warmDictAround(len);
-  const url = `/dict/${len}.txt`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Missing /dict/${len}.txt`);
-  const text = await res.text();
-  const list = text.split(/\r?\n/).filter(Boolean);
-  return list[Math.floor(Math.random() * list.length)];
-}
-
-async function randomizeFreeplay(len: number) {
-  const s = await randomWord(len);
-  let t = await randomWord(len);
-  // avoid identical start/target
-  for (let guard = 0; guard < 10 && t === s; guard++) {
-    t = await randomWord(len);
-  }
-  resetGame(s, t);
-}
-  
-async function nextFreeplayRandom4() {
-  setMessage("Loading next…");
-  try {
-    await randomizeFreeplay(4);
-    setMessage("");
-  } catch {
-    setMessage("Couldn’t load the 4-letter dictionary.");
-  }
-}
-
-  // ---- Dictionary checks (sync fast path + async fallback) ----
-  function validateWordSync(w: string): boolean {
-    return inDictSync(w);
-  }
-  async function validateWordAsync(w: string): Promise<boolean> {
-    return await inDict(w);
-  }
-
-  // ---- Submit guess ----
-  async function submitGuess() {
-    const g = normalize(guess);
-    setMessage("");
-
-    // Rule check: add one, drop one, change one, or swap two letters
-    if (!isOneMorph(currentWord, g)) {
-      setMessage("Move must add one, drop one, change one, or swap two letters.");
-      return;
-    }
-
-    // Dictionary required in ALL modes
-    const quick = validateWordSync(g);
-    let ok = quick;
-    if (!quick) ok = await validateWordAsync(g);
-    if (!ok) {
-      setMessage("Not in dictionary.");
-      return;
-    }
-
-    // if (path.includes(g)) {
-    //   setMessage("You already used that word.");
-    //   return;
-    // }
-
-    const newPath = [...path, g];
-    setPath(newPath);
-    setGuess("");
-
-    if (g === targetWord) {
-      setState("won");
-      setMessage(`Nice! Solved in ${newPath.length - 1} moves.`);
-      if (mode === "daily") {
-        const updated = recordWinFor(computeDayId());
-        setStreak(updated.streak);
-      }
-    }
-  }
-
-  // ---- Reset game ----
+  // ---------------- Helpers ----------------
   function resetGame(newStart = startWord, newTarget = targetWord) {
     const s = normalize(newStart);
     const t = normalize(newTarget);
@@ -148,13 +68,186 @@ async function nextFreeplayRandom4() {
     setState("playing");
   }
 
-  // ---- Share result (emoji bar + path + site link) ----
+  function setModeDaily() {
+    setMode("daily");
+    const { puzzle } = todayPuzzle();
+    resetGame(puzzle.start, puzzle.target);
+  }
+  function setModeFreeplay() {
+    setMode("freeplay");
+    resetGame("COLD", "WARM");
+  }
+  function setModeTimed() {
+    setMode("timed");
+    // prepare a clean board, but don't start the clock until user clicks Start
+    resetGame("COLD", "WARM");
+    // load PR for current (timedLen, timedDuration)
+    setTimedBest(loadTimedBest(timedLen, timedDuration));
+    setTimedRunning(false);
+    setTimedScore(0);
+    setTimedLeft(timedDuration);
+  }
+
+  // random word from /public/dict/<len>.txt
+  async function randomWord(len: number): Promise<string> {
+    await warmDictAround(len);
+    const url = `/dict/${len}.txt`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Missing /dict/${len}.txt`);
+    const text = await res.text();
+    const list = text.split(/\r?\n/).filter(Boolean);
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  async function randomizeFreeplay(len: number) {
+    const s = await randomWord(len);
+    let t = await randomWord(len);
+    for (let i = 0; i < 10 && t === s; i++) t = await randomWord(len);
+    resetGame(s, t);
+  }
+
+  async function nextFreeplayRandom4() {
+    setMessage("Loading next…");
+    try {
+      await randomizeFreeplay(4);
+      setMessage("");
+    } catch {
+      setMessage("Couldn’t load the 4-letter dictionary.");
+    }
+  }
+
+  function validateWordSync(w: string): boolean {
+    return inDictSync(w);
+  }
+  async function validateWordAsync(w: string): Promise<boolean> {
+    return await inDict(w);
+  }
+
+  // ---------------- Timed mode: PR storage ----------------
+  function timedKey(len: number, dur: number) {
+    return `morph_timed_pr_${len}_${dur}`;
+  }
+  function loadTimedBest(len: number, dur: number): number {
+    try {
+      const raw = localStorage.getItem(timedKey(len, dur));
+      return raw ? Number(raw) : 0;
+    } catch {
+      return 0;
+    }
+  }
+  function saveTimedBest(len: number, dur: number, val: number) {
+    try {
+      localStorage.setItem(timedKey(len, dur), String(val));
+    } catch {}
+  }
+
+  // ---------------- Timed mode: run control ----------------
+  async function startTimedRun() {
+    // new random start/target of chosen length
+    try {
+      await randomizeFreeplay(timedLen);
+    } catch {
+      setMessage("Couldn't load dictionary for that length.");
+      return;
+    }
+    setTimedScore(0);
+    setTimedLeft(timedDuration);
+    setTimedBest(loadTimedBest(timedLen, timedDuration));
+    setTimedRunning(true);
+    setMode("timed");
+    setMessage("Go!");
+  }
+
+  function stopTimedRun(finalMsg?: string) {
+    setTimedRunning(false);
+    const best = loadTimedBest(timedLen, timedDuration);
+    if (timedScore > best) {
+      saveTimedBest(timedLen, timedDuration, timedScore);
+      setTimedBest(timedScore);
+      setMessage(finalMsg ?? `Time! New PR: ${timedScore}`);
+    } else {
+      setMessage(finalMsg ?? `Time! Score: ${timedScore} • PR: ${best}`);
+    }
+  }
+
+  // countdown tick
+  useEffect(() => {
+    if (!timedRunning) return;
+    const id = setInterval(() => {
+      setTimedLeft((s) => {
+        if (s <= 1) {
+          clearInterval(id);
+          // time up on this ladder → end run
+          stopTimedRun("⏰ Time’s up! Run ended.");
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timedRunning]);
+
+  // ---------------- Submit guess ----------------
+  async function submitGuess() {
+    const g = normalize(guess);
+    setMessage("");
+
+    // Rule check: add one, drop one, change one, or swap two letters
+    if (!isOneMorph(currentWord, g)) {
+      setMessage("Move must add one, drop one, change one, or swap two letters.");
+      return;
+    }
+
+    // Dictionary required (both modes)
+    const quick = validateWordSync(g);
+    let ok = quick;
+    if (!quick) ok = await validateWordAsync(g);
+    if (!ok) {
+      setMessage("Not in dictionary.");
+      return;
+    }
+
+    // Allow repeats now (no blocking)
+    // if (path.includes(g)) { ... }
+
+    const newPath = [...path, g];
+    setPath(newPath);
+    setGuess("");
+
+    // Win condition
+    if (g === targetWord) {
+      setState("won");
+      if (mode === "daily") {
+        setMessage(`Nice! Solved in ${newPath.length - 1} moves.`);
+        const updated = recordWinFor(computeDayId());
+        setStreak(updated.streak);
+      } else if (mode === "freeplay") {
+        setMessage(`Solved in ${newPath.length - 1} moves.`);
+      } else if (mode === "timed") {
+        // Timed: increment score and immediately start a new random ladder with full time
+        const nextScore = timedScore + 1;
+        setTimedScore(nextScore);
+        setMessage(`✅ ${nextScore} solved — next!`);
+        // new ladder and reset timer
+        try {
+          await randomizeFreeplay(timedLen);
+          setState("playing");
+          setTimedLeft(timedDuration);
+        } catch {
+          stopTimedRun("Dictionary error. Run ended.");
+        }
+      }
+    }
+  }
+
+  // ---------------- Share result ----------------
   function shareResultEmoji() {
     const moves = path.length - 1;
     const header =
       mode === "daily"
         ? `Morphonyms #${todayId} — ${moves} move${moves === 1 ? "" : "s"}`
-        : `Morphonyms (Freeplay) — ${moves} move${moves === 1 ? "" : "s"}`;
+        : `Morphonyms (${mode}) — ${moves} move${moves === 1 ? "" : "s"}`;
     const bar = "🟩".repeat(Math.max(moves, 1));
     const body = `Path: ${path.join(" → ")}`;
 
@@ -162,7 +255,7 @@ async function nextFreeplayRandom4() {
     navigator.clipboard
       .writeText(text)
       .then(() => setMessage("Result copied! Paste to share."))
-      .catch(() => setMessage("Couldn’t copy automatically. You can copy manually."));
+      .catch(() => setMessage("Couldn’t copy automatically."));
   }
 
   return (
@@ -180,8 +273,9 @@ async function nextFreeplayRandom4() {
         </div>
       )}
 
+      {/* Mode selector */}
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <div className="row" style={{ gap: "0.5rem" }}>
+        <div className="row" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
           <button
             className={"btn " + (mode === "daily" ? "" : "secondary")}
             onClick={setModeDaily}
@@ -196,11 +290,20 @@ async function nextFreeplayRandom4() {
           >
             Freeplay
           </button>
+          <button
+            className={"btn " + (mode === "timed" ? "" : "secondary")}
+            onClick={setModeTimed}
+            title="Solve as many ladders as you can"
+          >
+            Timed
+          </button>
         </div>
         <div>
           <small>
             {mode === "daily" ? (
               <>Streak: <strong>{streak}</strong> • Puzzle #{todayId}</>
+            ) : mode === "timed" ? (
+              <>Score: <strong>{timedScore}</strong> • PR: <strong>{timedBest}</strong></>
             ) : (
               <>Freeplay mode</>
             )}
@@ -208,6 +311,7 @@ async function nextFreeplayRandom4() {
         </div>
       </div>
 
+      {/* Board */}
       <section className="board">
         <div className="pair">
           <div className="pill start">{startWord}</div>
@@ -221,13 +325,14 @@ async function nextFreeplayRandom4() {
           ))}
         </ol>
 
+        {/* Guess Controls */}
         {state === "playing" && (
           <div className="controls">
             <input
               className="guessInput"
-              placeholder="Your next word"
+              placeholder={mode === "timed" && timedRunning ? `Time: ${timedLeft}s` : "Your next word"}
               value={guess}
-              onChange={(e) => setGuess(e.target.value)}
+              onChange={(event) => setGuess(event.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitGuess()}
             />
             <button onClick={submitGuess} className="btn">Submit</button>
@@ -240,49 +345,50 @@ async function nextFreeplayRandom4() {
           <button className="btn secondary" onClick={() => resetGame()}>
             Reset
           </button>
-          {state === "won" && (
+          {state === "won" && mode !== "timed" && (
             <button className="btn" onClick={shareResultEmoji}>
               Share (emoji)
             </button>
           )}
-          {mode === "freeplay" && state === "won" && (
+            {mode === "freeplay" && state === "won" && (
     <button className="btn" onClick={nextFreeplayRandom4}>
       Next
     </button>
   )}
         </div>
 
+        {/* Freeplay controls */}
         {mode === "freeplay" && (
-          <details className="freeplay">
-            <summary>Freeplay: choose your own start/target</summary>
+          <details className="freeplay" open>
+            <summary>Freeplay controls</summary>
             <div className="freeplay-inner">
-            <label>
-  Length:{" "}
-  <select
-    value={freeplayLen}
-    onChange={(e) => setFreeplayLen(Number(e.target.value))}
-    style={{ padding: "0.35rem 0.5rem", borderRadius: 6 }}
-  >
-    <option value={3}>3</option>
-    <option value={4}>4</option>
-    <option value={5}>5</option>
-  </select>
-</label>
+              <label>
+                Length:{" "}
+                <select
+                  value={freeplayLen}
+                  onChange={(event) => setFreeplayLen(Number((event.target as HTMLSelectElement).value))}
+                  style={{ padding: "0.35rem 0.5rem", borderRadius: 6 }}
+                >
+                  <option value={3}>3</option>
+                  <option value={4}>4</option>
+                  <option value={5}>5</option>
+                </select>
+              </label>
 
-<button
-  className="btn"
-  onClick={async () => {
-    setMessage("Generating random puzzle…");
-    try {
-      await randomizeFreeplay(freeplayLen);
-      setMessage("");
-    } catch (e) {
-      setMessage("Couldn’t load dictionary for that length.");
-    }
-  }}
->
-  Random Start/End
-</button>
+              <button
+                className="btn"
+                onClick={async () => {
+                  setMessage("Generating random puzzle…");
+                  try {
+                    await randomizeFreeplay(freeplayLen);
+                    setMessage("");
+                  } catch {
+                    setMessage("Couldn’t load dictionary for that length.");
+                  }
+                }}
+              >
+                Random Start/End
+              </button>
 
               <label>
                 Start:{" "}
@@ -302,7 +408,72 @@ async function nextFreeplayRandom4() {
                 Start New Ladder
               </button>
               <p className="hint">
-                Freeplay & Daily both require dictionary words.
+                Both modes require dictionary words.
+              </p>
+            </div>
+          </details>
+        )}
+
+        {/* Timed controls */}
+        {mode === "timed" && (
+          <details className="freeplay" open>
+            <summary>Timed mode controls</summary>
+            <div className="freeplay-inner">
+              <label>
+                Length:{" "}
+                <select
+                  value={timedLen}
+                  onChange={(event) => {
+                    const v = Number((event.target as HTMLSelectElement).value);
+                    setTimedLen(v);
+                    setTimedBest(loadTimedBest(v, timedDuration));
+                  }}
+                  style={{ padding: "0.35rem 0.5rem", borderRadius: 6 }}
+                >
+                  <option value={3}>3</option>
+                  <option value={4}>4</option>
+                  <option value={5}>5</option>
+                </select>
+              </label>
+
+              <label>
+                Per-ladder time:{" "}
+                <select
+                  value={timedDuration}
+                  onChange={(event) => {
+                    const v = Number((event.target as HTMLSelectElement).value);
+                    setTimedDuration(v);
+                    setTimedLeft(v);
+                    setTimedBest(loadTimedBest(timedLen, v));
+                  }}
+                  style={{ padding: "0.35rem 0.5rem", borderRadius: 6 }}
+                >
+                  <option value={30}>30 seconds</option>
+                  <option value={60}>60 seconds</option>
+                </select>
+              </label>
+
+              {!timedRunning ? (
+                <button className="btn" onClick={startTimedRun}>
+                  Start Run
+                </button>
+              ) : (
+                <button
+                  className="btn secondary"
+                  onClick={() => stopTimedRun("Run stopped.")}
+                >
+                  Stop Run
+                </button>
+              )}
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <strong>Timer:</strong> {timedRunning ? `${timedLeft}s` : "—"} •{" "}
+                <strong>Score:</strong> {timedScore} •{" "}
+                <strong>PR:</strong> {timedBest}
+              </div>
+
+              <p className="hint" style={{ gridColumn: "1 / -1" }}>
+                Finish each ladder before the clock hits zero. Score +1 per ladder. Timer resets each time you finish one. Your best score (PR) is saved on this device by length and time.
               </p>
             </div>
           </details>
