@@ -79,6 +79,16 @@ async function randomizeFreeplay(len: number) {
   resetGame(s, t);
 }
   
+async function nextFreeplayRandom4() {
+  setMessage("Loading next…");
+  try {
+    await randomizeFreeplay(4);
+    setMessage("");
+  } catch {
+    setMessage("Couldn’t load the 4-letter dictionary.");
+  }
+}
+
   // ---- Dictionary checks (sync fast path + async fallback) ----
   function validateWordSync(w: string): boolean {
     return inDictSync(w);
@@ -235,6 +245,11 @@ async function randomizeFreeplay(len: number) {
               Share (emoji)
             </button>
           )}
+          {mode === "freeplay" && state === "won" && (
+    <button className="btn" onClick={nextFreeplayRandom4}>
+      Next
+    </button>
+  )}
         </div>
 
         {mode === "freeplay" && (
