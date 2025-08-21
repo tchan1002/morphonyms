@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRef } from "react";
 import "./App.css";
 
 import { normalize, isOneMorph } from "./lib";
@@ -43,6 +44,10 @@ function App() {
   const [timedBest, setTimedBest] = useState<number>(() => loadTimedBest(4, 60));
 
   const currentWord = path[path.length - 1];
+// ...
+  const scoreRef = useRef(timedScore);
+  useEffect(() => { scoreRef.current = timedScore; }, [timedScore]);
+
 
   // ---------------- Dictionary preloading ----------------
   useEffect(() => {
@@ -158,17 +163,23 @@ function App() {
     setMessage("Go!");
   }
 
-  function stopTimedRun(finalMsg?: string) {
+  function stopTimedRun(finalMsg?: string, opts?: { len?: number; dur?: number; score?: number }) {
+    const len = opts?.len ?? timedLen;
+    const dur = opts?.dur ?? timedDuration;
+    const score = opts?.score ?? timedScore;
+  
     setTimedRunning(false);
-    const best = loadTimedBest(timedLen, timedDuration);
-    if (timedScore > best) {
-      saveTimedBest(timedLen, timedDuration, timedScore);
-      setTimedBest(timedScore);
-      setMessage(finalMsg ?? `Time! New PR: ${timedScore}`);
+  
+    const best = loadTimedBest(len, dur);
+    if (score > best) {
+      saveTimedBest(len, dur, score);
+      setTimedBest(score);
+      setMessage(finalMsg ?? `Time! New PR: ${score}`);
     } else {
-      setMessage(finalMsg ?? `Time! Score: ${timedScore} • PR: ${best}`);
+      setMessage(finalMsg ?? `Time! Score: ${score} • PR: ${best}`);
     }
   }
+  
 
   // countdown tick
   useEffect(() => {
@@ -177,8 +188,12 @@ function App() {
       setTimedLeft((s) => {
         if (s <= 1) {
           clearInterval(id);
-          // time up on this ladder → end run
-          stopTimedRun("⏰ Time’s up! Run ended.");
+          // lock the run using explicit params to avoid stale state
+          stopTimedRun("⏰ Time’s up! Run ended.", {
+            len: timedLen,
+            dur: timedDuration,
+            score: scoreRef.current,
+          });
           return 0;
         }
         return s - 1;
@@ -186,13 +201,13 @@ function App() {
     }, 1000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timedRunning]);
+  }, [timedRunning, timedLen, timedDuration]);  
 
   // ---------------- Submit guess ----------------
   async function submitGuess() {
+    if (mode === "timed" && !timedRunning) return; // ignore input after time's up
     const g = normalize(guess);
     setMessage("");
-
     // Rule check: add one, drop one, change one, or swap two letters
     if (!isOneMorph(currentWord, g)) {
       setMessage("Move must add one, drop one, change one, or swap two letters.");
@@ -228,8 +243,10 @@ function App() {
         // Timed: increment score and immediately start a new random ladder with full time
         const nextScore = timedScore + 1;
         setTimedScore(nextScore);
-        setMessage(`✅ ${nextScore} solved — next!`);
-        // new ladder and reset timer
+        setMessage(`✅ ${nextScore} solved — next!`);   // new ladder and reset timer
+        
+        if (!timedRunning) return; // timer hit zero during async work — bail cleanly
+
         try {
           await randomizeFreeplay(timedLen);
           setState("playing");
@@ -328,14 +345,21 @@ function App() {
         {/* Guess Controls */}
         {state === "playing" && (
           <div className="controls">
-            <input
-              className="guessInput"
-              placeholder={mode === "timed" && timedRunning ? `Time: ${timedLeft}s` : "Your next word"}
-              value={guess}
-              onChange={(event) => setGuess(event.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitGuess()}
-            />
-            <button onClick={submitGuess} className="btn">Submit</button>
+<input
+  className="guessInput"
+  disabled={mode === "timed" && !timedRunning}
+  placeholder={mode === "timed" && timedRunning ? `Time: ${timedLeft}s` : "Your next word"}
+  value={guess}
+  onChange={(event) => setGuess(event.target.value)}
+  onKeyDown={(e) => e.key === "Enter" && submitGuess()}
+/>
+<button
+  className="btn"
+  disabled={mode === "timed" && !timedRunning}
+  onClick={submitGuess}
+>
+  Submit
+</button>
           </div>
         )}
 
