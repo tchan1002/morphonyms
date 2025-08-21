@@ -55,7 +55,30 @@ function App() {
     setMode("freeplay");
     resetGame("COLD", "WARM");
   }
+  // Freeplay randomizer settings
+const [freeplayLen, setFreeplayLen] = useState(4); // default 4-letter puzzles
 
+async function randomWord(len: number): Promise<string> {
+  // ensure dict for this length is warm before fetching the list
+  await warmDictAround(len);
+  const url = `/dict/${len}.txt`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Missing /dict/${len}.txt`);
+  const text = await res.text();
+  const list = text.split(/\r?\n/).filter(Boolean);
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+async function randomizeFreeplay(len: number) {
+  const s = await randomWord(len);
+  let t = await randomWord(len);
+  // avoid identical start/target
+  for (let guard = 0; guard < 10 && t === s; guard++) {
+    t = await randomWord(len);
+  }
+  resetGame(s, t);
+}
+  
   // ---- Dictionary checks (sync fast path + async fallback) ----
   function validateWordSync(w: string): boolean {
     return inDictSync(w);
@@ -84,10 +107,10 @@ function App() {
       return;
     }
 
-    if (path.includes(g)) {
-      setMessage("You already used that word.");
-      return;
-    }
+    // if (path.includes(g)) {
+    //   setMessage("You already used that word.");
+    //   return;
+    // }
 
     const newPath = [...path, g];
     setPath(newPath);
@@ -218,6 +241,34 @@ function App() {
           <details className="freeplay">
             <summary>Freeplay: choose your own start/target</summary>
             <div className="freeplay-inner">
+            <label>
+  Length:{" "}
+  <select
+    value={freeplayLen}
+    onChange={(e) => setFreeplayLen(Number(e.target.value))}
+    style={{ padding: "0.35rem 0.5rem", borderRadius: 6 }}
+  >
+    <option value={3}>3</option>
+    <option value={4}>4</option>
+    <option value={5}>5</option>
+  </select>
+</label>
+
+<button
+  className="btn"
+  onClick={async () => {
+    setMessage("Generating random puzzle…");
+    try {
+      await randomizeFreeplay(freeplayLen);
+      setMessage("");
+    } catch (e) {
+      setMessage("Couldn’t load dictionary for that length.");
+    }
+  }}
+>
+  Random Start/End
+</button>
+
               <label>
                 Start:{" "}
                 <input
