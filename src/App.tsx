@@ -143,7 +143,9 @@ function App() {
   function saveTimedBest(len: number, dur: number, val: number) {
     try {
       localStorage.setItem(timedKey(len, dur), String(val));
-    } catch {}
+    } catch {
+      // comment: ignore storage errors
+    }
   }
 
   // ---------------- Timed mode: run control ----------------
