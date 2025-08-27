@@ -263,7 +263,7 @@ function App() {
     const moves = path.length - 1;
     const header =
       mode === "daily"
-        ? `I solved Morphonyms #${todayId} in ${moves} move${moves === 1 ? "" : "s"}`
+        ? `I solved today's puzzle in ${moves} move${moves === 1 ? "" : "s"}!`
         : `Morphonyms (${mode}) — ${moves} move${moves === 1 ? "" : "s"}`;
     const bar = "🟩".repeat(Math.max(moves, 1));
     const body = `Path: ${path.join(" → ")}`;
@@ -292,6 +292,44 @@ function App() {
       .writeText(textWithUrl)
       .then(() => setMessage("Result copied! Paste to share."))
       .catch(() => setMessage("Couldn’t copy automatically."));
+  }
+
+  // ---------------- Add to Home Screen ----------------
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator as any).standalone === true;
+
+  useEffect(() => {
+    function onBip(e: any) {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstall(true);
+    }
+    window.addEventListener('beforeinstallprompt', onBip as any);
+    return () => window.removeEventListener('beforeinstallprompt', onBip as any);
+  }, []);
+
+  async function handleInstall() {
+    // If native prompt is available (Android/desktop Chrome)
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice.catch(() => null);
+      setDeferredPrompt(null);
+      setCanInstall(false);
+      if (choice && choice.outcome === 'accepted') {
+        setMessage('Installed to home screen.');
+      } else {
+        setMessage('Install dismissed.');
+      }
+      return;
+    }
+    // iOS: show quick instructions
+    if (isIOS && !isStandalone) {
+      setMessage('On iOS: Tap the Share button, then “Add to Home Screen”.');
+      return;
+    }
+    setMessage('Install not supported here.');
   }
 
   return (
@@ -398,6 +436,11 @@ function App() {
       Next
     </button>
   )}
+          {(!isStandalone || canInstall) && (
+            <button className="btn secondary" onClick={handleInstall} title="Install app">
+              Add to Home Screen
+            </button>
+          )}
         </div>
 
         {/* Freeplay controls */}
