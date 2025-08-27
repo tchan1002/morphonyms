@@ -296,7 +296,6 @@ function App() {
 
   // ---------------- Add to Home Screen ----------------
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [canInstall, setCanInstall] = useState(false);
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator as any).standalone === true;
 
@@ -304,7 +303,6 @@ function App() {
     function onBip(e: any) {
       e.preventDefault();
       setDeferredPrompt(e);
-      setCanInstall(true);
     }
     window.addEventListener('beforeinstallprompt', onBip as any);
     return () => window.removeEventListener('beforeinstallprompt', onBip as any);
