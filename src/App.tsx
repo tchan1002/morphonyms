@@ -268,7 +268,10 @@ function App() {
     const bar = "🟩".repeat(Math.max(moves, 1));
     const body = `Path: ${path.join(" → ")}`;
 
-    const text = `${header}\n${bar}\n${body}\n${SITE_URL}`;
+    const text =
+      mode === "daily"
+        ? `${header}\n${bar}\n${SITE_URL}`
+        : `${header}\n${bar}\n${body}\n${SITE_URL}`;
     navigator.clipboard
       .writeText(text)
       .then(() => setMessage("Result copied! Paste to share."))
