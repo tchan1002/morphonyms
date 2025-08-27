@@ -27,7 +27,7 @@
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 .pill.start { background: lightblue; border: 1px solid lightblue; }
 .pill.target { background: orange; border: 1px solid orange; }
@@ -41,7 +41,7 @@
 .path-item {
   padding: 0.25rem 0;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .controls {
@@ -55,7 +55,7 @@
   border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 1rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .btn {
@@ -109,7 +109,7 @@
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .hint {
@@ -120,4 +120,36 @@
 }
 
 .foot { margin-top: 1rem; color: #666; }
+
+/* --- Mobile refinements --- */
+@media (max-width: 480px) {
+  .wrap {
+    margin: 0.5rem auto;
+    padding: 0.75rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+  .top h1 { font-size: 1.6rem; }
+  .tag { font-size: 0.95rem; }
+
+  .board { padding: 0.75rem; }
+  .pair { gap: 0.4rem; }
+  .pill {
+    padding: 0.35rem 0.65rem;
+    font-size: 1rem;
+    letter-spacing: 0.035em;
+  }
+  .controls { gap: 0.4rem; }
+  .guessInput {
+    font-size: 16px; /* prevent iOS zoom */
+    padding: 0.7rem 0.75rem;
+  }
+  .btn {
+    padding: 0.6rem 0.8rem;
+  }
+  .row { flex-wrap: wrap; gap: 0.4rem; }
+  .freeplay-inner {
+    grid-template-columns: 1fr; /* single column on small screens */
+  }
+  .hint { font-size: 0.85rem; }
+}
 

@@ -2,9 +2,25 @@
 export type Puzzle = { start: string; target: string };
 
 export const PUZZLES: Puzzle[] = [
-  { start: "COLD", target: "WARM" }, // classic ladder
-  { start: "FOOL", target: "FOUR" }, // 2 moves in our mini-list
-  { start: "CODE", target: "RODE" }, // 1 move "gimme"
+  { start: "COLD", target: "WARM" },
+  { start: "FOOL", target: "FOUR" },
+  { start: "CODE", target: "RODE" },
+  { start: "HARD", target: "EASY" },
+  { start: "MEAN", target: "KIND" },
+  { start: "LATE", target: "SOON" },
+  { start: "NIGHT", target: "DAY" },
+  { start: "LEFT", target: "RIGHT" },
+  { start: "SAD", target: "HAPPY" },
+  { start: "SMALL", target: "LARGE" },
+  { start: "ODD", target: "EVEN" },
+  { start: "BLACK", target: "WHITE" },
+  { start: "TRUE", target: "FAKE" },
+  { start: "SALT", target: "SWEET" },
+  { start: "BIRD", target: "FISH" },
+  { start: "TREE", target: "BUSH" },
+  { start: "SING", target: "SONG" },
+  { start: "CATS", target: "DOGS" },
+  { start: "SILK", target: "SATIN" },
 ];
 
 // A simple, timezone-friendly "day id" (changes at local midnight)
