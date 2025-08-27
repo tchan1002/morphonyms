@@ -8,15 +8,6 @@
 .top h1 { margin: 0; font-size: 2rem; }
 .tag { color: #555; margin-top: 0.25rem; }
 
-/* Keep header visible while keyboard opens on mobile */
-.top {
-  position: sticky;
-  top: env(safe-area-inset-top, 0);
-  background: inherit;
-  z-index: 5;
-  padding-top: 0.25rem;
-}
-
 .board {
   margin-top: 1.25rem;
   border: 1px solid #e5e5e5;
@@ -66,7 +57,6 @@
   font-size: 1rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  scroll-margin-top: 72px; /* leave space for sticky header */
 }
 .btn {
   padding: 0.6rem 0.9rem;

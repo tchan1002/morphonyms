@@ -25,9 +25,9 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  align-items: center;
+  place-items: center;
   min-width: 320px;
-  min-height: 100dvh;
+  min-height: 100vh;
 }
 
 h1 {
@@ -67,9 +67,4 @@ button:focus-visible {
   }
 }
 
-/* Mobile: avoid vertical centering so header stays visible when keyboard opens */
-@media (max-width: 480px) {
-  body {
-    align-items: flex-start;
-  }
-}
+/* (reverted mobile body override) */
