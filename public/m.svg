@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <style>
+      .bg { fill: #111111; }
+      .m { fill: #ffffff; font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-weight: 800; }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="512" height="512" rx="96" ry="96" />
+  <text class="m" x="50%" y="56%" text-anchor="middle" font-size="330">M</text>
+</svg>
