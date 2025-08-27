@@ -263,20 +263,24 @@ function App() {
     const moves = path.length - 1;
     const header =
       mode === "daily"
-        ? `Morphonyms #${todayId} — ${moves} move${moves === 1 ? "" : "s"}`
+        ? `I solved Morphonyms #${todayId} in ${moves} move${moves === 1 ? "" : "s"}`
         : `Morphonyms (${mode}) — ${moves} move${moves === 1 ? "" : "s"}`;
     const bar = "🟩".repeat(Math.max(moves, 1));
     const body = `Path: ${path.join(" → ")}`;
 
-    const text =
+    const textWithUrl =
       mode === "daily"
         ? `${header}\n${bar}\n${SITE_URL}`
         : `${header}\n${bar}\n${body}\n${SITE_URL}`;
+    const textNoUrl =
+      mode === "daily"
+        ? `${header}\n${bar}`
+        : `${header}\n${bar}\n${body}`;
 
     const nav: any = navigator as any;
     if (nav && typeof nav.share === "function") {
       try {
-        await nav.share({ title: "Morphonyms", text, url: SITE_URL });
+        await nav.share({ title: "Morphonyms", text: textNoUrl, url: SITE_URL });
         setMessage("Share sheet opened.");
         return;
       } catch {
@@ -285,7 +289,7 @@ function App() {
     }
 
     navigator.clipboard
-      .writeText(text)
+      .writeText(textWithUrl)
       .then(() => setMessage("Result copied! Paste to share."))
       .catch(() => setMessage("Couldn’t copy automatically."));
   }
