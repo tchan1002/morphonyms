@@ -314,7 +314,6 @@ function App() {
       deferredPrompt.prompt();
       const choice = await deferredPrompt.userChoice.catch(() => null);
       setDeferredPrompt(null);
-      setCanInstall(false);
       if (choice && choice.outcome === 'accepted') {
         setMessage('Installed to home screen.');
       } else {
