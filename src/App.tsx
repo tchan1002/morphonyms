@@ -436,11 +436,6 @@ function App() {
       Next
     </button>
   )}
-          {(!isStandalone || canInstall) && (
-            <button className="btn secondary" onClick={handleInstall} title="Install app">
-              Add to Home Screen
-            </button>
-          )}
         </div>
 
         {/* Freeplay controls */}
@@ -567,7 +562,17 @@ function App() {
       </section>
 
       <footer className="foot">
-        <small>Prototype — dictionaries load on demand per word length.</small>
+        {(!isStandalone) ? (
+          <button
+            onClick={handleInstall}
+            title="Install Morphonyms"
+            style={{ background: "none", border: "none", padding: 0, color: "inherit", textDecoration: "underline", cursor: "pointer" }}
+          >
+            Add to Home Screen
+          </button>
+        ) : (
+          <small>Prototype — dictionaries load on demand per word length.</small>
+        )}
       </footer>
     </div>
   );
