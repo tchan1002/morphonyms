@@ -259,7 +259,7 @@ function App() {
   }
 
   // ---------------- Share result ----------------
-  function shareResultEmoji() {
+  async function shareResultEmoji() {
     const moves = path.length - 1;
     const header =
       mode === "daily"
@@ -272,6 +272,18 @@ function App() {
       mode === "daily"
         ? `${header}\n${bar}\n${SITE_URL}`
         : `${header}\n${bar}\n${body}\n${SITE_URL}`;
+
+    const nav: any = navigator as any;
+    if (nav && typeof nav.share === "function") {
+      try {
+        await nav.share({ title: "Morphonyms", text, url: SITE_URL });
+        setMessage("Share sheet opened.");
+        return;
+      } catch {
+        // If user cancels or share fails, fall back to clipboard
+      }
+    }
+
     navigator.clipboard
       .writeText(text)
       .then(() => setMessage("Result copied! Paste to share."))
